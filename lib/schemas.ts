@@ -37,3 +37,23 @@ export const AnalysisSchema = z.object({
 
 export type Assessment = z.infer<typeof AssessmentSchema>;
 export type AnalysisResult = z.infer<typeof AnalysisSchema>;
+
+export const GenerateRequestSchema = z.object({
+  topic: z
+    .string()
+    .trim()
+    .min(2, "Topic must be at least 2 characters")
+    .max(150, "Topic must not exceed 150 characters"),
+  timeMinutes: z
+    .number()
+    .int()
+    .min(1, "Time must be at least 1 minute")
+    .max(120, "Time cannot exceed 120 minutes"),
+  level: z.enum(["Beginner", "Intermediate", "Advanced"]),
+});
+
+export const AnalyzeRequestSchema = z.object({
+  assessment: AssessmentSchema,
+  userAnswers: z.record(z.string(), z.string()),
+  timeTakenSeconds: z.number().nonnegative(),
+});

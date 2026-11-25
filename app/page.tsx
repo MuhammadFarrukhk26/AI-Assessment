@@ -110,6 +110,45 @@ export default function AssessmentPlatform() {
   // Results State
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
 
+  // Restore active test from localStorage on page load (prevents lost progress on reload or network drops)
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("active_assessment_state");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed?.assessment && parsed?.stage === "active") {
+          setAssessment(parsed.assessment);
+          setUserAnswers(parsed.userAnswers || {});
+          setSecondsLeft(parsed.secondsLeft || parsed.assessment.totalTimeMinutes * 60);
+          setStage("active");
+          startTimeRef.current = parsed.startTime || Date.now();
+        }
+      }
+    } catch {
+      // Ignore localStorage errors
+    }
+  }, []);
+
+  // Sync active test to localStorage
+  useEffect(() => {
+    if (stage === "active" && assessment) {
+      try {
+        localStorage.setItem(
+          "active_assessment_state",
+          JSON.stringify({
+            stage,
+            assessment,
+            userAnswers,
+            secondsLeft,
+            startTime: startTimeRef.current,
+          })
+        );
+      } catch {
+        // Ignore quota/storage errors
+      }
+    }
+  }, [stage, assessment, userAnswers, secondsLeft]);
+
   // 1. Generate Assessment Handler
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,7 +164,15 @@ export default function AssessmentPlatform() {
         body: JSON.stringify({ topic, timeMinutes, level }),
       });
 
-      if (!res.ok) throw new Error("Failed to generate assessment.");
+      if (!res.ok) {
+        const responseError: { error?: unknown } = await res.json().catch(() => ({}));
+        throw new Error(
+          typeof responseError.error === "string"
+            ? responseError.error
+            : "Failed to generate assessment."
+        );
+      }
+
       const data: Assessment = await res.json();
 
       setAssessment(data);
@@ -164,11 +211,19 @@ export default function AssessmentPlatform() {
         }),
       });
 
-      if (!res.ok) throw new Error("Failed to analyze submission.");
+      if (!res.ok) {
+        const responseError: { error?: unknown } = await res.json().catch(() => ({}));
+        throw new Error(
+          typeof responseError.error === "string"
+            ? responseError.error
+            : "Failed to analyze submission."
+        );
+      }
       const result: AnalysisResult = await res.json();
 
       setAnalysis(result);
       setStage("results");
+      localStorage.removeItem("active_assessment_state");
     } catch (err: any) {
       setError(err.message || "Analysis failed. Please try again.");
       isSubmittingRef.current = false;
@@ -207,6 +262,7 @@ export default function AssessmentPlatform() {
     setAnalysis(null);
     setUserAnswers({});
     setError(null);
+    localStorage.removeItem("active_assessment_state");
   };
 
   return (
@@ -236,9 +292,20 @@ export default function AssessmentPlatform() {
         </header>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl flex items-center gap-2 text-sm">
-            <AlertTriangle className="w-5 h-5 shrink-0" />
-            <span>{error}</span>
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl flex items-center justify-between gap-3 text-sm">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 shrink-0" />
+              <span>{error}</span>
+            </div>
+            {stage === "active" && (
+              <button
+                onClick={handleSubmit}
+                disabled={loading}
+                className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold shrink-0 transition"
+              >
+                Retry Submission
+              </button>
+            )}
           </div>
         )}
 

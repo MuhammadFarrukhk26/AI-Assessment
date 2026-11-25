@@ -20,6 +20,19 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## AI provider configuration
+
+Add at least one provider key to `.env.local`:
+
+```env
+GOOGLE_GENERATIVE_AI_API_KEY=your-google-api-key
+OPENROUTER_API_KEY=your-openrouter-api-key
+# Optional; defaults to openai/gpt-6.2-sol
+OPENROUTER_MODEL=openai/gpt-6.2-sol
+```
+
+Google is used first when its key is configured. OpenRouter is used as a fallback for retryable Google API failures, or directly if only the OpenRouter key is configured. OpenRouter usage may incur separate charges. When fallback runs, assessment prompts and answers are sent to OpenRouter and the selected model provider. Keep API keys private and do not commit them.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
